@@ -8,7 +8,11 @@
  *  (1) len will always be 1
  *  (2) non-ascii characters don't matter */
 
-static size_t do_read(FILE *f, unsigned char *buf, size_t len)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_READ
+#endif
+size_t do_read(FILE *f, unsigned char *buf, size_t len)
 {
 	size_t i;
 	const wchar_t *wcs = f->cookie;

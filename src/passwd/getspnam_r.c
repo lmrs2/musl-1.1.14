@@ -53,7 +53,11 @@ int __parsespent(char *s, struct spwd *sp)
 	return 0;
 }
 
-static void cleanup(void *p)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+void cleanup(void *p)
 {
 	fclose(p);
 }

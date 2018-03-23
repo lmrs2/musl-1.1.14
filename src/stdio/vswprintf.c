@@ -10,7 +10,11 @@ struct cookie {
 	size_t l;
 };
 
-static size_t sw_write(FILE *f, const unsigned char *s, size_t l)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
+size_t sw_write(FILE *f, const unsigned char *s, size_t l)
 {
 	size_t l0 = l;
 	int i = 0;

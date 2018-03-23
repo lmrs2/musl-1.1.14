@@ -29,6 +29,9 @@ _Noreturn void __pthread_exit(void *result)
 	self->result = result;
 
 	while (self->cancelbuf) {
+#if _ZEROSTACK_
+		TAG_MUSL_PTHREAD_CANCELBUF
+#endif
 		void (*f)(void *) = self->cancelbuf->__f;
 		void *x = self->cancelbuf->__x;
 		self->cancelbuf = self->cancelbuf->__next;

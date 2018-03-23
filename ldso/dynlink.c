@@ -296,7 +296,11 @@ static struct symdef find_sym(struct dso *dso, const char *s, int need_def)
 }
 
 __attribute__((__visibility__("hidden")))
+#if _ZEROSTACK_
+ptrdiff_t __tlsdesc_static(void), __tlsdesc_dynamic(void);
+#else
 ptrdiff_t __tlsdesc_static(), __tlsdesc_dynamic();
+#endif
 
 static void do_relocs(struct dso *dso, size_t *rel, size_t rel_size, size_t stride)
 {
@@ -888,7 +892,15 @@ static void makefuncdescs(struct dso *p)
 
 static struct dso *load_library(const char *name, struct dso *needed_by)
 {
+#if _ZEROSTACK_
+	//printf("name:%s\n", name);
+	#define BUFSIZE	(2*NAME_MAX+2)
+	#define FREE_BUF() do{ if(buf) free(buf); buf=0; }while(0);
+	char *buf = malloc(2*NAME_MAX+2);
+	if (!buf) return 0;
+#else
 	char buf[2*NAME_MAX+2];
+#endif
 	const char *pathname;
 	unsigned char *map;
 	struct dso *p, temp_dso = {0};
@@ -900,6 +912,9 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 
 	if (!*name) {
 		errno = EINVAL;
+#if _ZEROSTACK_
+		FREE_BUF();
+#endif
 		return 0;
 	}
 
@@ -935,27 +950,56 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 			ldso.prev = tail;
 			tail = ldso.next ? ldso.next : &ldso;
 		}
+#if _ZEROSTACK_
+		FREE_BUF();
+#endif
 		return &ldso;
 	}
 	if (strchr(name, '/')) {
 		pathname = name;
+		//printf("pathname:%s\n", pathname);
 		fd = open(name, O_RDONLY|O_CLOEXEC);
 	} else {
 		/* Search for the name to see if it's already loaded */
 		for (p=head->next; p; p=p->next) {
 			if (p->shortname && !strcmp(p->shortname, name)) {
 				p->refcnt++;
+#if _ZEROSTACK_
+				FREE_BUF();
+#endif
 				return p;
 			}
 		}
 		if (strlen(name) > NAME_MAX) return 0;
 		fd = -1;
-		if (env_path) fd = path_open(name, env_path, buf, sizeof buf);
+		//printf("path_open:%s %s %s\n", name, env_path, buf);
+		if (env_path) fd = path_open(name, env_path, buf, 
+#if _ZEROSTACK_
+		BUFSIZE
+#else		
+		sizeof buf
+#endif
+		);
+		//printf("buf:%s\n", buf);
 		for (p=needed_by; fd == -1 && p; p=p->needed_by) {
-			if (fixup_rpath(p, buf, sizeof buf) < 0)
+			if (fixup_rpath(p, buf, 
+#if _ZEROSTACK_
+				BUFSIZE
+#else		
+				sizeof buf
+#endif			
+			) < 0)
 				fd = -2; /* Inhibit further search. */
-			if (p->rpath)
-				fd = path_open(name, p->rpath, buf, sizeof buf);
+			if (p->rpath) {
+				//printf(" p->rpath:%s\n",  p->rpath);
+				fd = path_open(name, p->rpath, buf, 
+#if _ZEROSTACK_
+							BUFSIZE
+#else		
+							sizeof buf
+#endif
+							);
+			}
 		}
 		if (fd == -1) {
 			if (!sys_path) {
@@ -973,11 +1017,27 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 					prefix = "";
 					prefix_len = 0;
 				}
+#if _ZEROSTACK_
+				size_t lenldso = prefix_len + 1
+					+ sizeof "/etc/ld-musl-" LDSO_ARCH ".path";
+				char * etc_ldso_path = malloc(lenldso);
+				if (!etc_ldso_path) {
+					FREE_BUF();
+					errno = ENOMEM;
+					return 0;
+				}
+				snprintf(etc_ldso_path, lenldso,
+					"%.*s/etc/ld-musl-" LDSO_ARCH ".path",
+					(int)prefix_len, prefix);
+#else
 				char etc_ldso_path[prefix_len + 1
 					+ sizeof "/etc/ld-musl-" LDSO_ARCH ".path"];
+
 				snprintf(etc_ldso_path, sizeof etc_ldso_path,
 					"%.*s/etc/ld-musl-" LDSO_ARCH ".path",
 					(int)prefix_len, prefix);
+#endif
+				//printf("etc_ldso_path:%s\n", etc_ldso_path);
 				FILE *f = fopen(etc_ldso_path, "rbe");
 				if (f) {
 					if (getdelim(&sys_path, (size_t[1]){0}, 0, f) <= 0) {
@@ -988,12 +1048,24 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 				} else if (errno != ENOENT) {
 					sys_path = "";
 				}
+#if _ZEROSTACK_
+				free(etc_ldso_path);
+#endif
 			}
 			if (!sys_path) sys_path = "/lib:/usr/local/lib:/usr/lib";
-			fd = path_open(name, sys_path, buf, sizeof buf);
+			//printf("buf2:%s\n", buf);
+			fd = path_open(name, sys_path, buf, 
+#if _ZEROSTACK_
+							BUFSIZE
+#else		
+							sizeof buf
+#endif
+			);
 		}
 		pathname = buf;
+		//printf("pathname:%s\n", pathname);
 	}
+	
 	if (fd < 0) return 0;
 	if (fstat(fd, &st) < 0) {
 		close(fd);
@@ -1011,10 +1083,16 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 			return p;
 		}
 	}
+	
 	map = noload ? 0 : map_library(fd, &temp_dso);
 	close(fd);
-	if (!map) return 0;
-
+	if (!map) {
+#if _ZEROSTACK_
+		FREE_BUF();
+#endif
+		return 0;
+	}
+	//printf("pathname:%s\n", pathname);
 	/* Allocate storage for the new DSO. When there is TLS, this
 	 * storage must include a reservation for all pre-existing
 	 * threads to obtain copies of both the new TLS, and an
@@ -1031,6 +1109,9 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 	p = calloc(1, alloc_size);
 	if (!p) {
 		unmap_library(&temp_dso);
+#if _ZEROSTACK_
+		FREE_BUF();
+#endif
 		return 0;
 	}
 	memcpy(p, &temp_dso, sizeof temp_dso);
@@ -1041,6 +1122,7 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 	p->needed_by = needed_by;
 	p->name = p->buf;
 	strcpy(p->name, pathname);
+	//printf("pathname:%s\n", pathname);
 	/* Add a shortname only if name arg was not an explicit pathname. */
 	if (pathname != name) p->shortname = strrchr(p->name, '/')+1;
 	if (p->tls.image) {
@@ -1072,6 +1154,9 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 
 	if (ldd_mode) dprintf(1, "\t%s => %s (%p)\n", name, pathname, p->base);
 
+#if _ZEROSTACK_
+	FREE_BUF();
+#endif
 	return p;
 }
 

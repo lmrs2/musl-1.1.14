@@ -197,13 +197,23 @@ int pthread_setconcurrency(int);
 
 int pthread_getcpuclockid(pthread_t, clockid_t *);
 
+#if _ZEROSTACK_
+#define TAG_MUSL_PTHREAD_CANCELBUF __attribute__((type_annotate("tag_musl_pthread_cancelbuf")))
+#endif
 struct __ptcb {
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
 	void (*__f)(void *);
 	void *__x;
 	struct __ptcb *__next;
 };
 
-void _pthread_cleanup_push(struct __ptcb *, void (*)(void *), void *);
+void _pthread_cleanup_push(struct __ptcb *, 
+#if _ZEROSTACK_
+	TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+	void (*)(void *), void *);
 void _pthread_cleanup_pop(struct __ptcb *, int);
 
 #define pthread_cleanup_push(f, x) do { struct __ptcb __cb; _pthread_cleanup_push(&__cb, f, x);

@@ -1,6 +1,10 @@
 #include "pthread_impl.h"
 
-static void undo(void *control)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+void undo(void *control)
 {
 	/* Wake all waiters, since the waiter status is lost when
 	 * resetting control to the initial state. */

@@ -7,5 +7,8 @@ struct k_sigaction {
 	void (*restorer)(void);
 	unsigned mask[2];
 };
-
+#if 1 // _ZEROSTACK_
+void __restore(void), __restore_rt(void);
+#else
 void __restore(), __restore_rt();
+#endif

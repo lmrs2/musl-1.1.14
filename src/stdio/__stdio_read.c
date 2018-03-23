@@ -1,6 +1,9 @@
 #include "stdio_impl.h"
 #include <sys/uio.h>
 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_READ
+#endif
 size_t __stdio_read(FILE *f, unsigned char *buf, size_t len)
 {
 	struct iovec iov[2] = {

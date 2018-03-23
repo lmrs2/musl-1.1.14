@@ -14,7 +14,11 @@ struct cookie {
 	mbstate_t mbs;
 };
 
-static off_t wms_seek(FILE *f, off_t off, int whence)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_SEEK
+#endif
+off_t wms_seek(FILE *f, off_t off, int whence)
 {
 	ssize_t base;
 	struct cookie *c = f->cookie;
@@ -29,7 +33,11 @@ fail:
 	return c->pos = base+off;
 }
 
-static size_t wms_write(FILE *f, const unsigned char *buf, size_t len)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
+size_t wms_write(FILE *f, const unsigned char *buf, size_t len)
 {
 	struct cookie *c = f->cookie;
 	size_t len2;
@@ -52,7 +60,11 @@ static size_t wms_write(FILE *f, const unsigned char *buf, size_t len)
 	return len;
 }
 
-static int wms_close(FILE *f)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_CLOSE
+#endif
+int wms_close(FILE *f)
 {
 	return 0;
 }

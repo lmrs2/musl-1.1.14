@@ -11,7 +11,7 @@ long double complex casinl(long double complex z)
 {
 	long double complex w;
 	long double x, y;
-
+	
 	x = creall(z);
 	y = cimagl(z);
 	w = CMPLXL(1.0 - (x - y)*(x + y), -2.0*x*y);

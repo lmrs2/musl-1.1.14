@@ -21,7 +21,11 @@ weak_alias(dummy_1, __pthread_tsd_run_dtors);
 
 void __reset_tls();
 
-static void cleanup_fromsig(void *p)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+void cleanup_fromsig(void *p)
 {
 	pthread_t self = __pthread_self();
 	__pthread_tsd_run_dtors(self);

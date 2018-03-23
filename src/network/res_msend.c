@@ -14,7 +14,11 @@
 #include "syscall.h"
 #include "lookup.h"
 
-static void cleanup(void *p)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+void cleanup(void *p)
 {
 	__syscall(SYS_close, (intptr_t)p);
 }

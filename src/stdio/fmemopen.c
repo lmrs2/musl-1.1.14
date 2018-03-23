@@ -9,7 +9,11 @@ struct cookie {
 	int mode;
 };
 
-static off_t mseek(FILE *f, off_t off, int whence)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_SEEK
+#endif
+off_t mseek(FILE *f, off_t off, int whence)
 {
 	ssize_t base;
 	struct cookie *c = f->cookie;
@@ -23,7 +27,12 @@ fail:
 	return c->pos = base+off;
 }
 
-static size_t mread(FILE *f, unsigned char *buf, size_t len)
+
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_READ
+#endif
+size_t mread(FILE *f, unsigned char *buf, size_t len)
 {
 	struct cookie *c = f->cookie;
 	size_t rem = c->len - c->pos;
@@ -43,7 +52,11 @@ static size_t mread(FILE *f, unsigned char *buf, size_t len)
 	return len;
 }
 
-static size_t mwrite(FILE *f, const unsigned char *buf, size_t len)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
+size_t mwrite(FILE *f, const unsigned char *buf, size_t len)
 {
 	struct cookie *c = f->cookie;
 	size_t rem;
@@ -65,7 +78,11 @@ static size_t mwrite(FILE *f, const unsigned char *buf, size_t len)
 	return len;
 }
 
-static int mclose(FILE *m)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_CLOSE
+#endif
+int mclose(FILE *m)
 {
 	return 0;
 }

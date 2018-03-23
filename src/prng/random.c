@@ -32,7 +32,11 @@ static uint64_t lcg64(uint64_t x) {
 	return 6364136223846793005ull*x + 1;
 }
 
+#if _ZEROSTACK_
+static void *savestate(void) {
+#else
 static void *savestate() {
+#endif
 	x[-1] = (n<<16)|(i<<8)|j;
 	return x-1;
 }

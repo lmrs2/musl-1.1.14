@@ -1,0 +1,137 @@
+#!/bin/sh
+#
+# musl-clang: A clang wrapper for musl C library.
+#             Supports static linking. (-static)
+#
+# WARNING: This is not a perfect drop-in replacement
+#
+# See LICENSE file for copyright and license details.
+# https://github.com/esjeon/musl-clang/blob/master/musl-clang
+# I've added some stuff. 
+# it spits out a lot of warning, because some options dont make sense sometimes,
+# eg when compiling.c -> .o then TAIL makes no sense...
+
+# musl installation
+PREFIX="/usr/local/musl"
+# compiler-rt installation
+CPREFIX="/usr/local"
+
+LLVM_DIR=`llvm-config --libdir`
+LLVM_PASS=$LLVM_DIR/LLVMZerostack.so
+
+
+CPP=no
+case "$0" in
+	*++) CPP=yes ;;
+esac
+
+if [ "${CPP}" = "yes" ]; then
+	CLANG=${REALCLANGPP:-"clang++"}
+else
+	CLANG=${REALCLANG:-"clang"}
+fi
+
+
+CLANG="$CLANG -Xclang -load -Xclang $LLVM_PASS"
+
+hasNo() {
+	pat="$1"
+	shift 1
+
+	for e in "$@"; do
+		#echo compare $e and ${pat}
+		if [ "$e" = "${pat}" ]; then
+			#echo return $e ${pat}
+			return 1
+		fi
+	done
+	return 0
+}
+
+# -U_FORTIFY_SOURCE -fno-optimize-sibling-calls
+ARGS="-nostdinc -fPIC -Wno-error=unused-command-line-argument"	# i always add fPIC even for static libs...
+TAIL="${CPREFIX}/lib/linux/libclang_rt.builtins-x86_64.a"	# for static libs, this seems better than than the -l<name>... maybe because i have somissing config :)
+
+#hasNo '-static' "$@";
+#STATIC_LINK=$?
+#if [ $STATIC_LINK -eq 1 ]; then
+
+	### add static libs of libc to the TAIL
+	####TAIL="${TAIL} ${PREFIX}/lib/libcrypt.a ${PREFIX}/lib/libdl.a ${PREFIX}/lib/libm.a ${PREFIX}/lib/libpthread.a ${PREFIX}/lib/libresolv.a ${PREFIX}/lib/librt.a ${PREFIX}/lib/libutil.a ${PREFIX}/lib/libxnet.a"
+	#ARGS="${ARGS} ${PREFIX}/lib/libc.a"
+	#echo STATIC ${ARGS}
+	##exit
+#fi
+
+#if hasNo '-c' "$@"
+#then
+	#TAIL="${PREFIX}/lib/linux/libclang_rt.builtins-x86_64.a"	# for static libs, this seems better rather than the -l<name>
+	#TAIL="-L${PREFIX}/lib/linux/ -lclang_rt.builtins-x86_64"	# -lgcc needed for libgcc function https://gcc.gnu.org/onlinedocs/gccint/Integer-library-routines.html
+#fi
+
+#if ! hasNo '-flto' "$@"
+#then
+	#ARGS="${ARGS} -flto"
+#fi
+
+if hasNo '-nostdinc' "$@"; then
+	ARGS="${ARGS} -isystem ${PREFIX}/include"
+fi
+
+if \
+	hasNo '-c' "$@" && \
+	hasNo '-S' "$@" && \
+	hasNo '-E' "$@"
+then
+	ARGS="${ARGS} -nostdlib"
+	ARGS="${ARGS} -Wl,-dynamic-linker=${PREFIX}/lib/libc.so"
+	ARGS="${ARGS} -L${PREFIX}/lib"
+	#ARGS="${ARGS} -Wl,-rpath=${PREFIX}/lib"
+
+	if hasNo '-nostartfiles' "$@" && \
+	   hasNo '-nostdlib' "$@" && \
+	   hasNo '-nodefaultlibs' "$@"
+	then
+		
+		# Laurent: check if it's shared
+		hasNo '-shared' "$@";
+		SHARED=$?
+		hasNo '-fPIE' "$@";
+		FPIE=$?
+		if [ $SHARED -eq 0 ]; then
+			#echo has NO shared
+			# TODO: I think these two files are the same, so we dont need the if-statement
+			# not sure why there's also a rcrt1.c ...
+			# and why is rcrt1.o not used?
+			#if [ $FPIE -eq 1 ]; then
+			#	echo no fPIE
+			#	ARGS="${ARGS} ${PREFIX}/lib/Scrt1.o"
+			#else
+			#	echo has fPIE
+				ARGS="${ARGS} ${PREFIX}/lib/crt1.o"
+			#fi
+		fi
+		#ARGS="${ARGS} ${PREFIX}/lib/crt1.o"
+		ARGS="${ARGS} ${PREFIX}/lib/crti.o"
+
+		TAIL="${TAIL} ${PREFIX}/lib/crtn.o"
+	fi
+
+	if hasNo '-nostdlib' "$@" && \
+	   hasNo '-nodefaultlibs' "$@"
+	then
+		if [ "${CPP}" = "yes" ]; then
+			TAIL="${TAIL} -lc++"
+			TAIL="${TAIL} -lunwind"
+			TAIL="${TAIL} -lm"
+		fi
+		TAIL="${TAIL} -lc"
+		#TAIL="${TAIL} -Wl,-Bstatic -lcompiler_rt"
+	fi
+fi
+
+
+#echo "# $0" "$@" >&2
+#set -x
+exec ${CLANG} ${ARGS} "$@" ${TAIL}
+

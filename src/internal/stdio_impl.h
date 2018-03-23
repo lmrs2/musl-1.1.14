@@ -5,6 +5,10 @@
 #include "syscall.h"
 #include "libc.h"
 
+#if _ZEROSTACK_
+#	include "annotations.h"
+#endif
+
 #define UNGET 8
 
 #define FFINALLOCK(f) ((f)->lock>=0 ? __lockfile((f)) : 0)
@@ -22,12 +26,24 @@
 struct _IO_FILE {
 	unsigned flags;
 	unsigned char *rpos, *rend;
+#if _ZEROSTACK_
+TAG_MUSL_FILE_CLOSE
+#endif
 	int (*close)(FILE *);
 	unsigned char *wend, *wpos;
 	unsigned char *mustbezero_1;
 	unsigned char *wbase;
+#if _ZEROSTACK_
+TAG_MUSL_FILE_READ
+#endif
 	size_t (*read)(FILE *, unsigned char *, size_t);
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
 	size_t (*write)(FILE *, const unsigned char *, size_t);
+#if _ZEROSTACK_
+TAG_MUSL_FILE_SEEK
+#endif
 	off_t (*seek)(FILE *, off_t, int);
 	unsigned char *buf;
 	size_t buf_size;
@@ -50,10 +66,25 @@ struct _IO_FILE {
 	struct __locale_struct *locale;
 };
 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_READ
+#endif
 size_t __stdio_read(FILE *, unsigned char *, size_t);
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
 size_t __stdio_write(FILE *, const unsigned char *, size_t);
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
 size_t __stdout_write(FILE *, const unsigned char *, size_t);
+#if _ZEROSTACK_
+TAG_MUSL_FILE_SEEK
+#endif
 off_t __stdio_seek(FILE *, off_t, int);
+#if _ZEROSTACK_
+TAG_MUSL_FILE_CLOSE
+#endif
 int __stdio_close(FILE *);
 
 size_t __string_read(FILE *, unsigned char *, size_t);

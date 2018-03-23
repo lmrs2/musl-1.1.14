@@ -6,7 +6,11 @@ static void dummy(struct __ptcb *cb)
 weak_alias(dummy, __do_cleanup_push);
 weak_alias(dummy, __do_cleanup_pop);
 
-void _pthread_cleanup_push(struct __ptcb *cb, void (*f)(void *), void *x)
+void _pthread_cleanup_push(struct __ptcb *cb, 
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+void (*f)(void *), void *x)
 {
 	cb->__f = f;
 	cb->__x = x;

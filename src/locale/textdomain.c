@@ -8,7 +8,11 @@
 
 static char *current_domain;
 
+#if _ZEROSTACK_
+char *__gettextdomain(void)
+#else
 char *__gettextdomain()
+#endif
 {
 	return current_domain ? current_domain : "messages";
 }

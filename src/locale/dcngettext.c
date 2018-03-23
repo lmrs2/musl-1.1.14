@@ -122,6 +122,9 @@ char *dcngettext(const char *domainname, const char *msgid1, const char *msgid2,
 	const struct __locale_map *lm;
 	const char *dirname, *locname, *catname;
 	size_t dirlen, loclen, catlen, domlen;
+#if _ZEROSTACK_
+	char *name =0, *s = 0;
+#endif
 
 	if ((unsigned)category >= LC_ALL) goto notrans;
 
@@ -136,6 +139,9 @@ char *dcngettext(const char *domainname, const char *msgid1, const char *msgid2,
 	lm = loc->cat[category];
 	if (!lm) {
 notrans:
+#if _ZEROSTACK_
+		if (name) free(name);
+#endif	
 		return (char *) ((n == 1) ? msgid1 : msgid2);
 	}
 	locname = lm->name;
@@ -145,7 +151,13 @@ notrans:
 	loclen = strlen(locname);
 
 	size_t namelen = dirlen+1 + loclen+1 + catlen+1 + domlen+3;
+#if _ZEROSTACK_
+	name = malloc(namelen+1); // Note: overflow
+	if (!name) { goto notrans; }
+	s = name;
+#else
 	char name[namelen+1], *s = name;
+#endif
 
 	memcpy(s, dirname, dirlen);
 	s[dirlen] = '/';
@@ -230,6 +242,9 @@ notrans:
 			trans += l+1;
 		}
 	}
+#if _ZEROSTACK_
+	if (name) free(name);
+#endif
 	return (char *)trans;
 }
 

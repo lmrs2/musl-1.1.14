@@ -1,5 +1,8 @@
 #include "stdio_impl.h"
 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_SEEK
+#endif
 off_t __stdio_seek(FILE *f, off_t off, int whence)
 {
 	off_t ret;

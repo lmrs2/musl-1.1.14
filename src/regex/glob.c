@@ -52,7 +52,14 @@ static int match_in_dir(const char *d, const char *p, int flags, int (*errfunc)(
 {
 	DIR *dir;
 	struct dirent de_buf, *de;
+#if _ZEROSTACK_
+	#define ZEROSTACKSTACK_RETURN(E) do{ free(pat); if (namebuf) free(namebuf); return E;}while(0)
+	char *pat = malloc(strlen(p)+1);
+	if (!pat) return GLOB_ABORTED;
+	char *namebuf = 0;
+#else
 	char pat[strlen(p)+1];
+#endif
 	char *p2;
 	size_t l = strlen(d);
 	int literal;
@@ -77,29 +84,68 @@ static int match_in_dir(const char *d, const char *p, int flags, int (*errfunc)(
 		if (error == ENOTDIR) return 0;
 		if (error == EACCES && !*p) {
 			struct stat st;
-			if (!stat(d, &st) && S_ISDIR(st.st_mode)) {
-				if (append(tail, d, l, l))
+			if (!stat(d, &st) && S_ISDIR(st.st_mode)) 
+				if (append(tail, d, l, l)) {
+#if _ZEROSTACK_
+					ZEROSTACKSTACK_RETURN(GLOB_NOSPACE);
+#else
 					return GLOB_NOSPACE;
+#endif
+				
+#if _ZEROSTACK_
+				ZEROSTACKSTACK_RETURN(0);
+#else
 				return 0;
+#endif
 			}
 		}
 		if (errfunc(d, error) || (flags & GLOB_ERR))
+#if _ZEROSTACK_
+			ZEROSTACKSTACK_RETURN(GLOB_ABORTED);
+#else
 			return GLOB_ABORTED;
+#endif
+#if _ZEROSTACK_
+		ZEROSTACKSTACK_RETURN(0);
+#else
 		return 0;
+#endif
 	}
 	if (!*p) {
 		error = append(tail, d, l, l) ? GLOB_NOSPACE : 0;
 		closedir(dir);
+#if _ZEROSTACK_
+		ZEROSTACKSTACK_RETURN(error);
+#else
 		return error;
+#endif
 	}
 	while (!(error = readdir_r(dir, &de_buf, &de)) && de) {
+#if _ZEROSTACK_
+		namebuf = malloc(l+de->d_reclen+2);
+		if (!namebuf) ZEROSTACKSTACK_RETURN(GLOB_ABORTED);
+		char *name = namebuf;
+#else
 		char namebuf[l+de->d_reclen+2], *name = namebuf;
-		if (!literal && fnmatch(p, de->d_name, fnm_flags))
+#endif
+		if (!literal && fnmatch(p, de->d_name, fnm_flags)) {
+#if _ZEROSTACK_
+			free(namebuf); namebuf = 0;
+#endif
 			continue;
-		if (literal && strcmp(p, de->d_name))
+		}
+		if (literal && strcmp(p, de->d_name)) {
+#if _ZEROSTACK_
+			free(namebuf); namebuf = 0;
+#endif
 			continue;
-		if (p2 && de->d_type && !S_ISDIR(de->d_type<<12) && !S_ISLNK(de->d_type<<12))
+		}
+		if (p2 && de->d_type && !S_ISDIR(de->d_type<<12) && !S_ISLNK(de->d_type<<12)) {
+#if _ZEROSTACK_
+			free(namebuf); namebuf = 0;
+#endif
 			continue;
+		}
 		if (*d) {
 			memcpy(name, d, l);
 			name[l] = '/';
@@ -110,7 +156,11 @@ static int match_in_dir(const char *d, const char *p, int flags, int (*errfunc)(
 		if (p2) {
 			if ((error = match_in_dir(name, p2, flags, errfunc, tail))) {
 				closedir(dir);
+#if _ZEROSTACK_
+				ZEROSTACKSTACK_RETURN(error);
+#else
 				return error;
+#endif
 			}
 		} else {
 			int mark = 0;
@@ -125,14 +175,30 @@ static int match_in_dir(const char *d, const char *p, int flags, int (*errfunc)(
 			}
 			if (append(tail, name, l+de->d_reclen+1, mark)) {
 				closedir(dir);
+#if _ZEROSTACK_
+				ZEROSTACKSTACK_RETURN(GLOB_NOSPACE);
+#else
 				return GLOB_NOSPACE;
+#endif
 			}
 		}
+#if _ZEROSTACK_
+		free(namebuf); namebuf = 0;
+#endif
 	}
 	closedir(dir);
 	if (error && (errfunc(d, error) || (flags & GLOB_ERR)))
+#if _ZEROSTACK_
+		ZEROSTACKSTACK_RETURN(GLOB_ABORTED);
+#else
 		return GLOB_ABORTED;
+#endif
+		
+#if _ZEROSTACK_
+	ZEROSTACKSTACK_RETURN(0);
+#else
 	return 0;
+#endif
 }
 
 static int ignore_err(const char *path, int err)

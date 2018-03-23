@@ -4,7 +4,11 @@
 #include <errno.h>
 #include <stdint.h>
 
-static size_t sn_write(FILE *f, const unsigned char *s, size_t l)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
+size_t sn_write(FILE *f, const unsigned char *s, size_t l)
 {
 	size_t k = f->wend - f->wpos;
 	if (k > l) k = l;

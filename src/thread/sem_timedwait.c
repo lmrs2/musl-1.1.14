@@ -1,7 +1,11 @@
 #include <semaphore.h>
 #include "pthread_impl.h"
 
-static void cleanup(void *p)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+void cleanup(void *p)
 {
 	a_dec(p);
 }

@@ -5,15 +5,26 @@
 #include "libc.h"
 #include "atomic.h"
 
+#if _ZEROSTACK_
+#	define TAG_MUSL_VDSO_TIME __attribute__((type_annotate("tag_musl___vdso_time")))
+#endif
+
 #ifdef VDSO_CGT_SYM
 
 void *__vdsosym(const char *, const char *);
 
 static void *volatile vdso_func;
 
-static int cgt_init(clockid_t clk, struct timespec *ts)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_VDSO_TIME
+#endif
+int cgt_init(clockid_t clk, struct timespec *ts)
 {
 	void *p = __vdsosym(VDSO_CGT_VER, VDSO_CGT_SYM);
+#if _ZEROSTACK_
+	TAG_MUSL_VDSO_TIME
+#endif
 	int (*f)(clockid_t, struct timespec *) =
 		(int (*)(clockid_t, struct timespec *))p;
 	a_cas_p(&vdso_func, (void *)cgt_init, p);
@@ -24,11 +35,16 @@ static void *volatile vdso_func = (void *)cgt_init;
 
 #endif
 
+
+
 int __clock_gettime(clockid_t clk, struct timespec *ts)
 {
 	int r;
 
 #ifdef VDSO_CGT_SYM
+#	if _ZEROSTACK_
+	TAG_MUSL_VDSO_TIME
+#	endif
 	int (*f)(clockid_t, struct timespec *) =
 		(int (*)(clockid_t, struct timespec *))vdso_func;
 	if (f) {

@@ -134,7 +134,11 @@ static void __aio_unref_queue(struct aio_queue *q)
 	}
 }
 
-static void cleanup(void *ctx)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_PTHREAD_CANCELBUF
+#endif
+void cleanup(void *ctx)
 {
 	struct aio_thread *at = ctx;
 	struct aio_queue *q = at->q;

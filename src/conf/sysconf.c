@@ -21,6 +21,10 @@
 
 #define RLIM(x) (-32768|(RLIMIT_ ## x))
 
+#if _ZEROSTACK_
+int __lsysinfo(struct sysinfo *);
+#endif
+
 long sysconf(int name)
 {
 	static const short values[] = {
@@ -199,7 +203,9 @@ long sysconf(int name)
 	case JT_PHYS_PAGES & 255:
 	case JT_AVPHYS_PAGES & 255: ;
 		unsigned long long mem;
+#if !_ZEROSTACK_
 		int __lsysinfo(struct sysinfo *);
+#endif
 		struct sysinfo si;
 		__lsysinfo(&si);
 		if (!si.mem_unit) si.mem_unit = 1;

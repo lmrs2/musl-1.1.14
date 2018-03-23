@@ -1,6 +1,10 @@
 #include "stdio_impl.h"
 
-static size_t wrap_write(FILE *f, const unsigned char *buf, size_t len)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_WRITE
+#endif
+size_t wrap_write(FILE *f, const unsigned char *buf, size_t len)
 {
 	return __stdio_write(f, buf, len);
 }

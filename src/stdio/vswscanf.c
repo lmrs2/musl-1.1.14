@@ -2,7 +2,11 @@
 #include "libc.h"
 #include <wchar.h>
 
-static size_t wstring_read(FILE *f, unsigned char *buf, size_t len)
+static 
+#if _ZEROSTACK_
+TAG_MUSL_FILE_READ
+#endif
+size_t wstring_read(FILE *f, unsigned char *buf, size_t len)
 {
 	const wchar_t *src = f->cookie;
 	size_t k;
