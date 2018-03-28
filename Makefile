@@ -14,6 +14,8 @@ bindir = $(exec_prefix)/bin
 
 prefix = /usr/local/musl
 includedir = $(prefix)/include
+# Added by Laurent
+metadir = $(prefix)/metafiles
 libdir = $(prefix)/lib
 syslibdir = /lib
 
@@ -39,7 +41,8 @@ IMPH = $(addprefix $(srcdir)/, src/internal/stdio_impl.h src/internal/pthread_im
 
 LDFLAGS =
 LDFLAGS_AUTO =
-LIBCC = -lgcc
+#LIBCC = -lgcc
+LIBCC = -lclang_rt.builtins-x86_64
 CPPFLAGS =
 CFLAGS =
 CFLAGS_AUTO = -Os -pipe
@@ -76,6 +79,9 @@ LDSO_PATHNAME = $(syslibdir)/ld-musl-$(ARCH)$(SUBARCH).so.1
 
 -include config.mak
 
+#print:
+#	echo $(CC)
+#	@exit 0
 ifeq ($(ARCH),)
 
 all:
@@ -132,6 +138,9 @@ $(CRT_OBJS): CFLAGS_ALL += -DCRT
 
 $(LOBJS) $(LDSO_OBJS): CFLAGS_ALL += -fPIC
 
+# Added by Laurent
+#$(LOBJS): CFLAGS_ALL += -flto
+
 CC_CMD = $(CC) $(CFLAGS_ALL) -c -o $@ $<
 
 # Choose invocation of assembler to be used
@@ -159,6 +168,7 @@ obj/%.lo: $(srcdir)/%.S
 obj/%.lo: $(srcdir)/%.c $(GENH) $(IMPH)
 	$(CC_CMD)
 
+# -flto flag added by Laurent - obj/src/stdio/fwrite.lo
 lib/libc.so: $(LOBJS) $(LDSO_OBJS)
 	$(CC) $(CFLAGS_ALL) $(LDFLAGS_ALL) -nostdlib -shared \
 	-Wl,-e,_dlstart -o $@ $(LOBJS) $(LDSO_OBJS) $(LIBCC)
@@ -219,7 +229,12 @@ install-headers: $(ALL_INCLUDES:include/%=$(DESTDIR)$(includedir)/%)
 
 install-tools: $(ALL_TOOLS:obj/%=$(DESTDIR)$(bindir)/%)
 
-install: install-libs install-headers install-tools
+# Added by Laurent
+install-zerostack:
+	cp zerostack-musl-clang $(bindir)/musl-clang && chmod a+rx $(bindir)/musl-clang
+
+install: install-libs install-headers install-tools install-zerostack
+#install-meta
 
 musl-git-%.tar.gz: .git
 	 git --git-dir=$(srcdir)/.git archive --format=tar.gz --prefix=$(patsubst %.tar.gz,%,$@)/ -o $@ $(patsubst musl-git-%.tar.gz,%,$@)
