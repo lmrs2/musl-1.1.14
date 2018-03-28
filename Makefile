@@ -77,6 +77,8 @@ WRAPCC_CLANG = clang
 
 LDSO_PATHNAME = $(syslibdir)/ld-musl-$(ARCH)$(SUBARCH).so.1
 
+LDD_LINK_EXISTS = $(shell [ -e $(bindir)/musl-ldd ] && echo yes || echo no)
+
 -include config.mak
 
 #print:
@@ -231,7 +233,10 @@ install-tools: $(ALL_TOOLS:obj/%=$(DESTDIR)$(bindir)/%)
 
 # Added by Laurent
 install-zerostack:
-	cp zerostack-musl-clang $(bindir)/musl-clang && chmod a+rx $(bindir)/musl-clang
+	@cp zerostack-musl-clang $(bindir)/musl-clang && chmod a+rx $(bindir)/musl-clang
+ifeq ($(LDD_LINK_EXISTS),no)
+	@ln -s $(libdir)/libc.so $(bindir)/musl-ldd
+endif
 
 install: install-libs install-headers install-tools install-zerostack
 #install-meta
